@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supplierApi, Summary } from "@/api/supplier";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +16,6 @@ import {
   Clock, 
   DollarSign,
   Users,
-  Star,
   MessageCircle,
   AlertCircle,
   CheckCircle,
@@ -43,45 +43,44 @@ import { Link } from "react-router-dom";
 export default function SupplierDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Stats enrichies pour fournisseur
-  const stats = [
-    {
-      title: "Produits actifs",
-      value: "47",
-      change: "+3 ce mois",
-      percentage: 85,
-      icon: Package,
-      color: "text-primary",
-      bgColor: "bg-primary/10"
-    },
-    {
-      title: "Commandes ce mois",
-      value: "156",
-      change: "+23% vs mois dernier",
-      percentage: 92,
-      icon: ShoppingCart,
-      color: "text-secondary",
-      bgColor: "bg-secondary/10"
-    },
-    {
-      title: "Chiffre d'affaires",
-      value: "3.2M FCFA",
-      change: "+18% ce mois",
-      percentage: 78,
-      icon: DollarSign,
-      color: "text-success",
-      bgColor: "bg-success/10"
-    },
-    {
-      title: "Note satisfaction",
-      value: "4.8/5",
-      change: "287 avis clients",
-      percentage: 96,
-      icon: Star,
-      color: "text-warning",
-      bgColor: "bg-warning/10"
-    }
-  ];
+  // Récupération des métriques du backend
+  const [summary, setSummary] = useState<Summary | null>(null);
+
+  useEffect(() => {
+    supplierApi.getSummary().then(setSummary).catch(console.error);
+  }, []);
+
+  const stats = summary
+    ? [
+        {
+          title: "Produits actifs",
+          value: summary.activeProducts.toString(),
+          change: "",
+          percentage: 0,
+          icon: Package,
+          color: "text-primary",
+          bgColor: "bg-primary/10"
+        },
+        {
+          title: "Commandes ce mois",
+          value: summary.ordersThisMonth.toString(),
+          change: "",
+          percentage: 0,
+          icon: ShoppingCart,
+          color: "text-secondary",
+          bgColor: "bg-secondary/10"
+        },
+        {
+          title: "Chiffre d'affaires",
+          value: `${(summary.revenueThisMonth / 1000).toFixed(0)}k FCFA`,
+          change: "",
+          percentage: 0,
+          icon: DollarSign,
+          color: "text-success",
+          bgColor: "bg-success/10"
+        }
+      ]
+    : [] as any;
 
   // Données enrichies pour analytics
   const revenueData = [
@@ -223,7 +222,7 @@ export default function SupplierDashboard() {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="pt-16">
+      <main className="pt-8">
         <div className="container mx-auto px-4 py-8">
           {/* En-tête Fournisseur enrichi */}
           <div className="mb-8">
@@ -243,34 +242,31 @@ export default function SupplierDashboard() {
                   <Settings className="h-4 w-4 mr-2" />
                   Paramètres
                 </Button>
-                <Button variant="construction">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nouveau produit
+                <Button asChild variant="construction">
+                  <Link to="/supplier/products" className="flex items-center gap-1">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nouveau produit
+                  </Link>
                 </Button>
               </div>
             </div>
-            
-            <div className="flex flex-wrap items-center gap-4">
-              <Badge variant="secondary" className="text-sm">
-                <CheckCircle className="h-4 w-4 mr-1" />
-                Compte vérifié
-              </Badge>
-              <Badge variant="outline" className="text-sm">
-                <Award className="h-4 w-4 mr-1" />
-                Fournisseur Premium
-              </Badge>
-              <Badge variant="outline" className="text-sm">
-                <Star className="h-4 w-4 mr-1" />
-                Top Rated 4.8/5
-              </Badge>
-              <Badge variant="outline" className="text-sm">
-                <Target className="h-4 w-4 mr-1" />
-                156 commandes ce mois
-              </Badge>
-            </div>
           </div>
-
-          {/* Statistiques enrichies */}
+          
+          <div className="flex flex-wrap items-center gap-4">
+            <Badge variant="secondary" className="text-sm">
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Compte vérifié
+            </Badge>
+            <Badge variant="outline" className="text-sm">
+              <Award className="h-4 w-4 mr-1" />
+              Fournisseur Premium
+            </Badge>
+            
+            <Badge variant="outline" className="text-sm">
+              <Target className="h-4 w-4 mr-1" />
+              {summary ? `${summary.ordersThisMonth} commandes ce mois` : '... commandes ce mois'}
+            </Badge>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {stats.map((stat, index) => (
               <Card key={index} className="shadow-card hover:shadow-construction transition-all duration-300">
@@ -476,15 +472,6 @@ export default function SupplierDashboard() {
 
             <TabsContent value="products" className="space-y-6">
               <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Gestion des Produits</CardTitle>
-                    <Button variant="construction">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Nouveau produit
-                    </Button>
-                  </div>
-                </CardHeader>
                 <CardContent>
                   <div className="text-center py-12">
                     <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -493,7 +480,9 @@ export default function SupplierDashboard() {
                       Gérez votre inventaire, prix et disponibilité
                     </p>
                     <Button variant="construction">
+                    <Link to="/supplier/products" className="flex items-center gap-1">
                       Commencer la gestion
+                    </Link>
                     </Button>
                   </div>
                 </CardContent>

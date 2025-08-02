@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supplierApi } from "@/api/supplier";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,12 +34,18 @@ import {
   Send
 } from "lucide-react";
 
+interface OrderItem { quantity: number; product: { price: number; name: string }; }
+
+interface ProductFlat { name: string; quantity: number; price: number; }
+
 interface Order {
   id: string;
   clientName: string;
   clientContact: string;
-  products: { name: string; quantity: string; price: string }[];
-  totalAmount: string;
+  items: OrderItem[];
+  products: ProductFlat[]; // toujours présent (tableau vide par défaut)
+  totalAmount: number; // calculé côté frontend pour fiabilité
+  
   status: "Nouvelle" | "En cours" | "Livrée" | "Annulée";
   orderDate: string;
   deliveryDate?: string;
@@ -49,66 +56,51 @@ interface Order {
 export default function SupplierOrders() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(false);
   const [orderAction, setOrderAction] = useState<{type: 'accept' | 'reject' | 'modify' | null, orderId: string | null}>({type: null, orderId: null});
   const [deliveryDate, setDeliveryDate] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
   const [modificationNotes, setModificationNotes] = useState("");
 
-  const [orders, setOrders] = useState<Order[]>([
-    {
-      id: "CMD-2024-001",
-      clientName: "Chantier Résidence Azure",
-      clientContact: "+225 07 12 34 56 78",
-      products: [
-        { name: "Ciment Portland CPJ 55", quantity: "50 sacs", price: "125,000 CFA" }
-      ],
-      totalAmount: "125,000 CFA",
-      status: "Nouvelle",
-      orderDate: "2024-01-15",
-      location: "Cocody, Abidjan",
-      notes: "Livraison urgente demandée pour vendredi"
-    },
-    {
-      id: "CMD-2024-002", 
-      clientName: "Projet Villa Moderne",
-      clientContact: "+225 05 98 76 54 32",
-      products: [
-        { name: "Fer à béton Ø12mm", quantity: "2 tonnes", price: "450,000 CFA" }
-      ],
-      totalAmount: "450,000 CFA",
-      status: "En cours",
-      orderDate: "2024-01-14",
-      deliveryDate: "2024-01-18",
-      location: "Plateau, Abidjan"
-    },
-    {
-      id: "CMD-2024-003",
-      clientName: "Chantier Centre Commercial",
-      clientContact: "+225 01 23 45 67 89",
-      products: [
-        { name: "Gravier concassé 5/15", quantity: "10m³", price: "85,000 CFA" }
-      ],
-      totalAmount: "85,000 CFA",
-      status: "Livrée",
-      orderDate: "2024-01-12",
-      deliveryDate: "2024-01-16",
-      location: "Yopougon, Abidjan"
-    },
-    {
-      id: "CMD-2024-004",
-      clientName: "Construction Résidence Bella",
-      clientContact: "+225 07 11 22 33 44",
-      products: [
-        { name: "Casques de sécurité Pro", quantity: "20 unités", price: "24,000 CFA" },
-        { name: "Ciment Portland CPJ 55", quantity: "30 sacs", price: "75,000 CFA" }
-      ],
-      totalAmount: "99,000 CFA",
-      status: "En cours",
-      orderDate: "2024-01-13",
-      deliveryDate: "2024-01-19",
-      location: "Marcory, Abidjan"
-    }
-  ]);
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  // chiffre d'affaires
+  const totalCA = orders.reduce((sum, o) => {
+    const orderTotal = o.items?.reduce((s, it) => s + it.quantity * it.product.price, 0) ?? 0;
+    return sum + orderTotal;
+  }, 0);
+
+  const formattedCA = totalCA.toLocaleString('fr-FR', { style: 'currency', currency: 'XOF' });
+
+  // charger commandes
+  useEffect(() => {
+    reload();
+  }, []);
+
+  const reload = () => {
+    setLoading(true);
+    supplierApi.getOrders()
+    .then((data: any[]) => {
+      const enriched = data.map((o: any) => {
+        const itemsArr = Array.isArray(o.items) ? o.items : [];
+        return {
+          ...o,
+          products: itemsArr.map((it: any) => ({
+          name: it.product.name,
+          quantity: it.quantity,
+          price: it.product.price,
+        })),
+          totalAmount: itemsArr.reduce(
+          (s: number, it: any) => s + it.quantity * (it.product?.price ?? 0),
+          0
+        ),
+        };
+      });
+      setOrders(enriched);
+    })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
 
   // Actions de validation
   const handleAcceptOrder = async (orderId: string) => {
@@ -117,13 +109,14 @@ export default function SupplierOrders() {
       return;
     }
     
-    setOrders(prev => prev.map(order => 
-      order.id === orderId 
-        ? { ...order, status: "En cours" as const, deliveryDate }
-        : order
-    ));
-    
-    toast.success("Commande acceptée avec succès");
+    try {
+      await supplierApi.updateOrder(orderId, { status: 'En cours', deliveryDate });
+      toast.success("Commande acceptée avec succès");
+      reload();
+    } catch (e) {
+      console.error(e);
+      toast.error("Erreur lors de l'acceptation");
+    }
     setOrderAction({type: null, orderId: null});
     setDeliveryDate("");
   };
@@ -134,13 +127,14 @@ export default function SupplierOrders() {
       return;
     }
     
-    setOrders(prev => prev.map(order => 
-      order.id === orderId 
-        ? { ...order, status: "Annulée" as const, notes: rejectionReason }
-        : order
-    ));
-    
-    toast.success("Commande refusée");
+    try {
+      await supplierApi.updateOrder(orderId, { status: 'Annulée', notes: rejectionReason });
+      toast.success("Commande refusée");
+      reload();
+    } catch (e) {
+      console.error(e);
+      toast.error("Erreur lors du refus");
+    }
     setOrderAction({type: null, orderId: null});
     setRejectionReason("");
   };
@@ -151,13 +145,14 @@ export default function SupplierOrders() {
       return;
     }
     
-    setOrders(prev => prev.map(order => 
-      order.id === orderId 
-        ? { ...order, notes: `Modifications demandées: ${modificationNotes}` }
-        : order
-    ));
-    
-    toast.success("Demande de modification envoyée au client");
+    try {
+      await supplierApi.updateOrder(orderId, { status: 'En cours', notes: modificationNotes });
+      toast.success("Demande envoyée");
+      reload();
+    } catch (e) {
+      console.error(e);
+      toast.error("Erreur envoi demande");
+    }
     setOrderAction({type: null, orderId: null});
     setModificationNotes("");
   };
@@ -240,7 +235,7 @@ export default function SupplierOrders() {
             <MapPin className="h-4 w-4" />
             <span className="truncate">{order.location}</span>
           </div>
-          <span className="text-lg font-bold text-secondary">{order.totalAmount}</span>
+          <span className="text-lg font-bold text-secondary">{order.totalAmount.toLocaleString('fr-FR', { style: 'currency', currency: 'XOF' })}</span>
         </div>
 
         <div className="flex items-center justify-between mb-4">
@@ -384,7 +379,7 @@ export default function SupplierOrders() {
                       </div>
                       <div className="flex justify-between items-center mt-4 p-4 bg-primary/10 rounded-lg border">
                         <span className="text-lg font-semibold">Total</span>
-                        <span className="text-2xl font-bold text-secondary">{selectedOrder.totalAmount}</span>
+                        <span className="text-2xl font-bold text-secondary">{selectedOrder.totalAmount.toLocaleString('fr-FR', { style: 'currency', currency: 'XOF' })}</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -433,7 +428,8 @@ export default function SupplierOrders() {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="pt-16">
+      
+      <main className="pt-8">
         <div className="container mx-auto px-4 py-8">
           {/* En-tête */}
           <div className="flex items-center gap-4 mb-8">
@@ -461,7 +457,6 @@ export default function SupplierOrders() {
                 </div>
               </CardContent>
             </Card>
-
             <Card className="shadow-card">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -495,7 +490,7 @@ export default function SupplierOrders() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Total CA</p>
-                    <p className="text-2xl font-bold text-secondary">759K CFA</p>
+                    <p className="text-2xl font-bold text-secondary">{formattedCA}</p>
                   </div>
                   <Package className="h-8 w-8 text-secondary" />
                 </div>

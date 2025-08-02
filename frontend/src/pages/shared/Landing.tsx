@@ -75,8 +75,8 @@ const Landing = () => {
             </h1>
             
             <p className="mx-auto mt-6 max-w-3xl text-xl text-white/90 leading-relaxed animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              SmartChantier connecte entrepreneurs, fournisseurs et équipes pour optimiser 
-              chaque aspect de vos projets de construction avec la puissance de l'IA.
+              BluidTechAfrica connecte entrepreneurs, fournisseurs et équipes pour optimiser 
+              chaque aspect de vos projets de construction avec la technologie moderne.
             </p>
             
             <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center animate-fade-in" style={{ animationDelay: '0.3s' }}>
@@ -143,7 +143,7 @@ const Landing = () => {
 
           {/* Benefits Grid */}
           <div className="bg-background rounded-2xl p-8 shadow-sm border">
-            <h3 className="text-xl font-semibold mb-6 text-center">Pourquoi choisir SmartChantier ?</h3>
+            <h3 className="text-xl font-semibold mb-6 text-center">Pourquoi choisir BluidTechAfrica ?</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {benefits.map((benefit, index) => (
                 <div key={index} className="flex items-center space-x-3 group">
@@ -169,7 +169,7 @@ const Landing = () => {
             </div>
             <h3 className="text-2xl font-semibold mb-2">Adopté par 500+ entreprises</h3>
             <p className="text-muted-foreground">
-              "SmartChantier a transformé notre façon de travailler. Gain de temps et d'efficacité incroyable !"
+              "BluidTechAfrica a transformé notre façon de travailler. Gain de temps et d'efficacité incroyable !"
             </p>
             <div className="mt-4 flex items-center justify-center space-x-4">
               <div className="flex -space-x-2">
@@ -192,7 +192,7 @@ const Landing = () => {
               Prêt à révolutionner vos chantiers ?
             </h2>
             <p className="text-xl text-white/90 mb-8 leading-relaxed">
-              Rejoignez des centaines d'entreprises qui font déjà confiance à SmartChantier 
+              Rejoignez des centaines d'entreprises qui font déjà confiance à BluidTechAfrica 
               pour optimiser leurs projets de construction.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">

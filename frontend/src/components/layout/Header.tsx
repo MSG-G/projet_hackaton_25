@@ -64,11 +64,14 @@ const Header = () => {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-hero">
-              <span className="text-lg font-bold text-white">SC</span>
-            </div>
-            <span className="inline-block font-bold text-xl text-primary">SmartChantier</span>
-          </Link>
+              <img
+                src="/bluidtech-logo.jpg"
+                alt="BluidTechAfrica logo"
+                className="h-8 w-8 rounded-lg"
+              />
+              <span className="inline-block font-bold text-xl text-primary">BluidTechAfrica</span>
+            </Link>
+
 
           {/* Desktop Navigation */}
           {isAuthenticated && (
