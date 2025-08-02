@@ -2,9 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import AdminProjectsOverview from "@/components/admin/AdminProjectsOverview";
-
-// Existing contractor projects view starts here...
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { 
   Plus, MapPin, Calendar, Users, TrendingUp, AlertTriangle, CheckCircle, Clock,
   Search, Filter, MoreHorizontal, Eye, Edit, Camera, FileText, 
@@ -34,110 +32,82 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Link } from "react-router-dom";
 import { useNotificationHelpers } from "@/hooks/useNotificationHelpers";
+import api from "@/utils/api";
 
-// Extended project data with comprehensive tracking
-const projects = [
-  {
-    id: 1,
-    name: "Centre Commercial Plateau",
-    location: "Abidjan, Plateau",
-    progress: 75,
-    status: "En cours",
-    priority: "Haute",
-    budget: { total: "2.5M", spent: "1.8M", remaining: "700K" },
-    team: { total: 12, onSite: 8, available: 4 },
-    deadline: "2024-03-15",
-    startDate: "2023-08-01",
-    tasks: { total: 24, completed: 18, pending: 6, blocked: 0 },
-    alerts: { total: 2, critical: 1, warning: 1, info: 0 },
-    weather: { condition: "Ensoleillé", temperature: "28°C", humidity: "65%" },
-    safety: { score: 95, incidents: 0, daysWithoutIncident: 45 },
-    quality: { score: 88, inspections: 12, issues: 2 },
-    materials: { deliveryToday: 3, stockLevel: "Bon", criticalItems: 1 },
-    image: "🏢",
-    coordinates: { lat: 5.316667, lng: -4.033333 },
-    supervisor: { name: "Jean Kouadio", phone: "+225 07 12 34 56", status: "on-site" },
-    client: { name: "Groupe CFAO", contact: "Marie Diabaté", satisfaction: 4.5 },
-    recentActivities: [
-      { time: "09:30", action: "Coulage béton niveau 3", user: "Équipe Gros Œuvre" },
-      { time: "08:15", action: "Livraison ferraillage", user: "Fournisseur SIDERIS" },
-      { time: "07:45", action: "Briefing sécurité", user: "Jean Kouadio" }
-    ],
-    phases: [
-      { name: "Fondations", progress: 100, status: "Terminé" },
-      { name: "Structure", progress: 85, status: "En cours" },
-      { name: "Clos couvert", progress: 45, status: "En cours" },
-      { name: "Second œuvre", progress: 0, status: "En attente" },
-      { name: "Finitions", progress: 0, status: "En attente" }
-    ]
-  },
-  {
-    id: 2,
-    name: "Résidence Les Palmiers",
-    location: "Cocody, Abidjan",
-    progress: 45,
-    status: "En cours",
-    priority: "Moyenne",
-    budget: { total: "1.8M", spent: "800K", remaining: "1M" },
-    team: { total: 8, onSite: 6, available: 2 },
-    deadline: "2024-05-20",
-    startDate: "2023-10-15",
-    tasks: { total: 32, completed: 14, pending: 16, blocked: 2 },
-    alerts: { total: 1, critical: 0, warning: 1, info: 0 },
-    weather: { condition: "Nuageux", temperature: "26°C", humidity: "78%" },
-    safety: { score: 92, incidents: 1, daysWithoutIncident: 12 },
-    quality: { score: 85, inspections: 8, issues: 3 },
-    materials: { deliveryToday: 1, stockLevel: "Moyen", criticalItems: 0 },
-    image: "🏘️",
-    coordinates: { lat: 5.344444, lng: -3.983333 },
-    supervisor: { name: "Paul Bamba", phone: "+225 05 98 76 54", status: "off-site" },
-    client: { name: "Promoteur Immobilier CI", contact: "Fatou Traoré", satisfaction: 4.2 },
-    recentActivities: [
-      { time: "11:00", action: "Inspection maçonnerie", user: "Contrôleur qualité" },
-      { time: "10:30", action: "Réunion client", user: "Paul Bamba" }
-    ],
-    phases: [
-      { name: "Fondations", progress: 100, status: "Terminé" },
-      { name: "Structure", progress: 70, status: "En cours" },
-      { name: "Clos couvert", progress: 20, status: "En cours" },
-      { name: "Second œuvre", progress: 0, status: "En attente" },
-      { name: "Finitions", progress: 0, status: "En attente" }
-    ]
-  },
-  {
-    id: 3,
-    name: "École Primaire Treichville",
-    location: "Treichville, Abidjan",
-    progress: 90,
-    status: "Finalisation",
-    priority: "Haute",
-    budget: { total: "800K", spent: "750K", remaining: "50K" },
-    team: { total: 6, onSite: 4, available: 2 },
-    deadline: "2024-02-28",
-    startDate: "2023-06-01",
-    tasks: { total: 20, completed: 18, pending: 2, blocked: 0 },
-    alerts: { total: 1, critical: 0, warning: 0, info: 1 },
-    weather: { condition: "Ensoleillé", temperature: "30°C", humidity: "60%" },
-    safety: { score: 98, incidents: 0, daysWithoutIncident: 89 },
-    quality: { score: 95, inspections: 15, issues: 1 },
-    materials: { deliveryToday: 0, stockLevel: "Faible", criticalItems: 0 },
-    image: "🏫",
-    coordinates: { lat: 5.283333, lng: -4.016667 },
-    supervisor: { name: "Marie Koffi", phone: "+225 01 23 45 67", status: "on-site" },
-    client: { name: "Ministère Éducation", contact: "Dr. Yao Kouassi", satisfaction: 4.8 },
-    recentActivities: [
-      { time: "14:20", action: "Pose carrelage", user: "Équipe Finitions" },
-      { time: "13:45", action: "Contrôle électricité", user: "Électricien" }
-    ],
-    phases: [
-      { name: "Fondations", progress: 100, status: "Terminé" },
-      { name: "Structure", progress: 100, status: "Terminé" },
-      { name: "Clos couvert", progress: 100, status: "Terminé" },
-      { name: "Second œuvre", progress: 95, status: "En cours" },
-      { name: "Finitions", progress: 80, status: "En cours" }
-    ]
+// Typage des données des projets (TypeScript)
+interface Project {
+  id: number;
+  name: string;
+  location: string;
+  progress: number;
+  status: string;
+  priority: string;
+  budget: { total: string; spent: string; remaining: string };
+  team: { total: number; onSite: number; available: number };
+  deadline: string;
+  startDate: string;
+  tasks: { total: number; completed: number; pending: number; blocked: number };
+  alerts: { total: number; critical: number; warning: number; info: number };
+  weather: { condition: string; temperature: string; humidity: string };
+  safety: { score: number; incidents: number; daysWithoutIncident: number };
+  quality: { score: number; inspections: number; issues: number };
+  materials: { deliveryToday: number; stockLevel: string; criticalItems: number };
+  image: string;
+  coordinates: { lat: number; lng: number };
+  supervisor: { name: string; phone: string; status: string };
+  client: { name: string; contact: string; satisfaction: number };
+  recentActivities: { time: string; action: string; user: string }[];
+  phases: { name: string; progress: number; status: string }[];
+}
+
+// Fonction utilitaire pour parser les budgets
+function parseBudget(budget: string): number {
+  if (budget.endsWith('M')) {
+    return parseFloat(budget.replace('M', '')) * 1_000_000;
   }
-];
+  if (budget.endsWith('K')) {
+    return parseFloat(budget.replace('K', '')) * 1_000;
+  }
+  return parseFloat(budget) || 0;
+}
+
+// Hook pour récupérer les projets depuis une API
+const useProjects = () => {
+  const { user } = useAuth();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get<Project[] | { projects: Project[] }>(
+          '/contractor/projects'
+        );
+        // Some back-ends return an array directly while others wrap it in an
+        // object { projects: [...] }. Support both.
+        const data = response.data as unknown;
+        const fetched: Project[] = Array.isArray(data)
+          ? (data as Project[])
+          : (data as { projects?: Project[] })?.projects ?? [];
+        setProjects(fetched);
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError(String(err));
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
+  return { projects, loading, error };
+};
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -160,50 +130,94 @@ const getPriorityColor = (priority: string) => {
 
 const Projects = () => {
   const { user } = useAuth();
-  
-  // Contractor projects view only
   const { notifyProjectUpdate } = useNotificationHelpers();
   const [activeTab, setActiveTab] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list" | "kanban">("grid");
-  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
-  const filteredProjects = projects.filter(project => {
+  const { projects, loading, error } = useProjects();
+
+  const filteredProjects = useMemo(() => projects.filter(project => {
     const matchesTab = 
       activeTab === "all" || 
       (activeTab === "active" && project.status === "En cours") ||
       (activeTab === "completed" && project.status === "Terminé") ||
-      (activeTab === "alerts" && project.alerts.total > 0) ||
-      (activeTab === "delayed" && new Date(project.deadline) < new Date()) ||
+      (activeTab === "alerts" && project.alerts?.total > 0) ||
+      (activeTab === "delayed" && new Date(project.deadline ?? '') < new Date()) ||
       (activeTab === "finishing" && project.status === "Finalisation");
 
-    const matchesSearch = 
-      project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.supervisor.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      (project.name ?? "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      (project.location ?? "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      (project.supervisor?.name ?? "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === "all" || project.status === statusFilter;
     const matchesPriority = priorityFilter === "all" || project.priority === priorityFilter;
     
     return matchesTab && matchesSearch && matchesStatus && matchesPriority;
-  });
+  }), [projects, activeTab, searchTerm, statusFilter, priorityFilter]);
 
-  // Calculate dashboard statistics
-  const stats = {
+  const stats = useMemo(() => ({
     total: projects.length,
     active: projects.filter(p => p.status === "En cours").length,
     completed: projects.filter(p => p.status === "Terminé").length,
-    delayed: projects.filter(p => new Date(p.deadline) < new Date() && p.status !== "Terminé").length,
-    totalBudget: projects.reduce((sum, p) => sum + parseFloat(p.budget.total.replace('M', '').replace('K', '0')), 0),
-    totalTeam: projects.reduce((sum, p) => sum + p.team.total, 0),
-    totalTasks: projects.reduce((sum, p) => sum + p.tasks.total, 0),
-    completedTasks: projects.reduce((sum, p) => sum + p.tasks.completed, 0),
-    totalAlerts: projects.reduce((sum, p) => sum + p.alerts.total, 0),
-    avgSafety: Math.round(projects.reduce((sum, p) => sum + p.safety.score, 0) / projects.length),
-    avgQuality: Math.round(projects.reduce((sum, p) => sum + p.quality.score, 0) / projects.length)
-  };
+    delayed: projects.filter(p => new Date(p.deadline ?? '').getTime() < new Date().getTime() && p.status !== "Terminé").length,
+    totalBudget: projects.reduce((sum, p) => sum + parseBudget(p.budget?.total ?? '0'), 0),
+    totalTeam: projects.reduce((sum, p) => sum + (p.team?.total ?? 0), 0),
+    totalTasks: projects.reduce((sum, p) => sum + (p.tasks?.total ?? 0), 0),
+    completedTasks: projects.reduce((sum, p) => sum + (p.tasks?.completed ?? 0), 0),
+    totalAlerts: projects.reduce((sum, p) => sum + (p.alerts?.total ?? 0), 0),
+    avgSafety: projects.length > 0 ? Math.round(projects.reduce((sum, p) => sum + (p.safety?.score ?? 0), 0) / projects.length) : 0,
+    avgQuality: projects.length > 0 ? Math.round(projects.reduce((sum, p) => sum + (p.quality?.score ?? 0), 0) / projects.length) : 0
+}), [projects]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container py-8">
+          <Card>
+            <CardContent className="text-center py-12">
+              <div className="text-6xl mb-4">🏗️</div>
+              <h3 className="text-xl font-semibold mb-2">Chargement des projets...</h3>
+              <p className="text-muted-foreground">Veuillez patienter pendant la récupération des données.</p>
+            </CardContent>
+          </Card>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container py-8">
+          <Card>
+            <CardContent className="text-center py-12">
+              <div className="text-6xl mb-4">⚠️</div>
+              <h3 className="text-xl font-semibold mb-2">Erreur lors du chargement</h3>
+              <p className="text-muted-foreground">{error}</p>
+              <Button variant="outline" onClick={() => window.location.reload()} className="mt-4">
+                Réessayer
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -309,7 +323,6 @@ const Projects = () => {
         <Card className="mb-6">
           <CardContent className="p-4">
             <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-              {/* Search and Filters */}
               <div className="flex flex-1 gap-4 items-center">
                 <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -347,11 +360,11 @@ const Projects = () => {
                 </Select>
               </div>
 
-              {/* View Mode Controls */}
               <div className="flex items-center gap-2">
                 <Button 
                   variant={viewMode === "grid" ? "default" : "outline"} 
                   size="sm"
+                  aria-label="Vue grille"
                   onClick={() => setViewMode("grid")}
                 >
                   <BarChart3 className="h-4 w-4" />
@@ -359,6 +372,7 @@ const Projects = () => {
                 <Button 
                   variant={viewMode === "list" ? "default" : "outline"} 
                   size="sm"
+                  aria-label="Vue liste"
                   onClick={() => setViewMode("list")}
                 >
                   <Clipboard className="h-4 w-4" />
@@ -366,6 +380,7 @@ const Projects = () => {
                 <Button 
                   variant={viewMode === "kanban" ? "default" : "outline"} 
                   size="sm"
+                  aria-label="Vue kanban"
                   onClick={() => setViewMode("kanban")}
                 >
                   <Target className="h-4 w-4" />
@@ -375,19 +390,17 @@ const Projects = () => {
           </CardContent>
         </Card>
 
-        {/* Enhanced Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="all">Tous ({stats.total})</TabsTrigger>
             <TabsTrigger value="active">Actifs ({stats.active})</TabsTrigger>
-            <TabsTrigger value="finishing">Finalisation (1)</TabsTrigger>
+            <TabsTrigger value="finishing">Finalisation ({projects.filter(p => p.status === "Finalisation").length})</TabsTrigger>
             <TabsTrigger value="delayed">En retard ({stats.delayed})</TabsTrigger>
             <TabsTrigger value="alerts">Alertes ({stats.totalAlerts})</TabsTrigger>
             <TabsTrigger value="completed">Terminés ({stats.completed})</TabsTrigger>
           </TabsList>
         </Tabs>
 
-        {/* Projects Display */}
         {viewMode === "grid" && (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {filteredProjects.map((project) => (
@@ -407,7 +420,7 @@ const Projects = () => {
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">
-                      {project.alerts.total > 0 && (
+                      {project.alerts?.total > 0 && (
                         <Badge variant="destructive" className="animate-pulse text-xs">
                           {project.alerts.total} alertes
                         </Badge>
@@ -449,7 +462,6 @@ const Projects = () => {
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                  {/* Status Row */}
                   <div className="flex flex-wrap gap-2">
                     <Badge className={getStatusColor(project.status)}>
                       {project.status}
@@ -459,102 +471,97 @@ const Projects = () => {
                     </Badge>
                     <Badge variant="outline" className="text-xs">
                       <Timer className="h-3 w-3 mr-1" />
-                      {Math.ceil((new Date(project.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))}j
+                      {Math.ceil((new Date(project.deadline ?? '').getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))}j
                     </Badge>
                   </div>
 
-                  {/* Progress Section */}
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium">Avancement global</span>
-                      <span className="text-sm font-bold text-primary">{project.progress}%</span>
+                      <span className="text-sm font-bold text-primary">{project.progress ?? 0}%</span>
                     </div>
                     <Progress value={project.progress} className="h-2" />
                   </div>
 
-                  {/* Key Metrics Grid */}
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="space-y-1">
                       <p className="text-muted-foreground flex items-center">
                         <DollarSign className="h-3 w-3 mr-1" />
                         Budget
                       </p>
-                      <p className="font-semibold">{project.budget.spent}/{project.budget.total}</p>
+                      <p className="font-semibold">{parseBudget(project.budget?.spent ?? '0')}/{parseBudget(project.budget?.total ?? '0')}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-muted-foreground flex items-center">
                         <Users className="h-3 w-3 mr-1" />
                         Équipe
                       </p>
-                      <p className="font-semibold">{project.team.onSite}/{project.team.total} sur site</p>
+                      <p className="font-semibold">{project.team?.onSite ?? 0}/{project.team?.total ?? 0} sur site</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-muted-foreground flex items-center">
                         <Shield className="h-3 w-3 mr-1" />
                         Sécurité
                       </p>
-                      <p className="font-semibold text-green-600">{project.safety.score}%</p>
+                      <p className="font-semibold text-green-600">{project.safety?.score ?? 0}%</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-muted-foreground flex items-center">
                         <Star className="h-3 w-3 mr-1" />
                         Qualité
                       </p>
-                      <p className="font-semibold text-blue-600">{project.quality.score}%</p>
+                      <p className="font-semibold text-blue-600">{project.quality?.score ?? 0}%</p>
                     </div>
                   </div>
 
-                  {/* Tasks Progress */}
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Tâches</p>
                     <div className="flex items-center gap-4 text-xs">
                       <div className="flex items-center gap-1">
                         <CheckCircle className="h-3 w-3 text-green-600" />
-                        <span>{project.tasks.completed} terminées</span>
+                        <span>{project.tasks?.completed ?? 0} terminées</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3 text-yellow-600" />
-                        <span>{project.tasks.pending} en cours</span>
+                        <span>{project.tasks?.pending ?? 0} en cours</span>
                       </div>
-                      {project.tasks.blocked > 0 && (
+                      {project.tasks?.blocked > 0 && (
                         <div className="flex items-center gap-1">
                           <XCircle className="h-3 w-3 text-red-600" />
-                          <span>{project.tasks.blocked} bloquées</span>
+                          <span>{project.tasks?.blocked ?? 0} bloquées</span>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Weather & Conditions */}
                   <div className="flex items-center justify-between text-xs bg-muted/50 rounded p-2">
                     <div className="flex items-center gap-1">
                       <div className="text-base">
-                        {project.weather.condition === "Ensoleillé" ? "☀️" : 
-                         project.weather.condition === "Nuageux" ? "☁️" : "🌧️"}
+                        {project.weather?.condition === "Ensoleillé" ? "☀️" : 
+                         project.weather?.condition === "Nuageux" ? "☁️" : "🌧️"}
                       </div>
-                      <span>{project.weather.temperature}</span>
+                      <span>{project.weather?.temperature ?? 'N/A'}</span>
                     </div>
                     <div className="text-muted-foreground">
-                      Humidité: {project.weather.humidity}
+                      Humidité: {project.weather?.humidity ?? 'N/A'}
                     </div>
                   </div>
 
-                  {/* Supervisor Info */}
                   <div className="flex items-center justify-between p-2 bg-accent/50 rounded">
                     <div className="flex items-center gap-2">
                       <Avatar className="h-6 w-6">
                         <AvatarFallback className="text-xs">
-                          {project.supervisor.name.split(' ').map(n => n[0]).join('')}
+                          {project.supervisor?.name ? project.supervisor.name.split(' ').map(n => n[0]).join('') : 'N/A'}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="text-xs font-medium">{project.supervisor.name}</p>
+                        <p className="text-xs font-medium">{project.supervisor?.name ?? 'N/A'}</p>
                         <p className="text-xs text-muted-foreground">Superviseur</p>
                       </div>
                     </div>
                     <div className="flex gap-1">
-                      <Badge variant={project.supervisor.status === 'on-site' ? 'default' : 'secondary'} className="text-xs">
-                        {project.supervisor.status === 'on-site' ? 'Sur site' : 'Hors site'}
+                      <Badge variant={project.supervisor?.status === 'on-site' ? 'default' : 'secondary'} className="text-xs">
+                        {project.supervisor?.status === 'on-site' ? 'Sur site' : 'Hors site'}
                       </Badge>
                       <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
                         <Phone className="h-3 w-3" />
@@ -562,7 +569,6 @@ const Projects = () => {
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
                   <div className="flex gap-2 pt-2">
                     <Button asChild variant="outline" size="sm" className="flex-1">
                       <Link to={`/projects/${project.id}`}>
@@ -583,7 +589,6 @@ const Projects = () => {
           </div>
         )}
 
-        {/* List View */}
         {viewMode === "list" && (
           <Card>
             <CardContent className="p-0">
@@ -617,7 +622,7 @@ const Projects = () => {
                           <Badge className={getStatusColor(project.status)}>
                             {project.status}
                           </Badge>
-                          {project.alerts.total > 0 && (
+                          {project.alerts?.total > 0 && (
                             <Badge variant="destructive" className="block w-fit">
                               {project.alerts.total} alertes
                             </Badge>
@@ -627,7 +632,7 @@ const Projects = () => {
                       <TableCell>
                         <div className="space-y-1">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm">{project.progress}%</span>
+                            <span className="text-sm">{project.progress ?? 0}%</span>
                           </div>
                           <Progress value={project.progress} className="h-2 w-20" />
                         </div>
@@ -636,28 +641,28 @@ const Projects = () => {
                         <div className="flex items-center gap-2">
                           <Avatar className="h-8 w-8">
                             <AvatarFallback>
-                              {project.supervisor.name.split(' ').map(n => n[0]).join('')}
+                              {project.supervisor?.name ? project.supervisor.name.split(' ').map(n => n[0]).join('') : 'N/A'}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="text-sm font-medium">{project.supervisor.name}</p>
-                            <Badge variant={project.supervisor.status === 'on-site' ? 'default' : 'secondary'} className="text-xs">
-                              {project.supervisor.status === 'on-site' ? 'Sur site' : 'Hors site'}
+                            <p className="text-sm font-medium">{project.supervisor?.name ?? 'N/A'}</p>
+                            <Badge variant={project.supervisor?.status === 'on-site' ? 'default' : 'secondary'} className="text-xs">
+                              {project.supervisor?.status === 'on-site' ? 'Sur site' : 'Hors site'}
                             </Badge>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <p>{new Date(project.deadline).toLocaleDateString('fr-FR')}</p>
+                          <p>{new Date(project.deadline ?? '').toLocaleDateString('fr-FR')}</p>
                           <p className="text-muted-foreground">
-                            {Math.ceil((new Date(project.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} jours
+                            {Math.ceil((new Date(project.deadline ?? '').getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} jours
                           </p>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <p className="font-medium">{project.budget.spent}/{project.budget.total}</p>
+                          <p className="font-medium">{parseBudget(project.budget?.spent ?? '0')}/{parseBudget(project.budget?.total ?? '0')}</p>
                           <p className="text-muted-foreground">
                             {Math.round((parseFloat(project.budget.spent.replace('M', '').replace('K', '0')) / 
                              parseFloat(project.budget.total.replace('M', '').replace('K', '0'))) * 100)}% utilisé
@@ -667,7 +672,7 @@ const Projects = () => {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Shield className="h-4 w-4 text-green-600" />
-                          <span className="text-sm font-medium">{project.safety.score}%</span>
+                          <span className="text-sm font-medium">{project.safety?.score ?? 0}%</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -703,7 +708,6 @@ const Projects = () => {
           </Card>
         )}
 
-        {/* Kanban View */}
         {viewMode === "kanban" && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {["Démarrage", "En cours", "Finalisation", "Terminé"].map((status) => {
@@ -730,8 +734,8 @@ const Projects = () => {
                           </div>
                           <Progress value={project.progress} className="h-1" />
                           <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>{project.progress}%</span>
-                            <span>{project.supervisor.name}</span>
+                            <span>{project.progress ?? 0}%</span>
+                            <span>{project.supervisor?.name ?? 'N/A'}</span>
                           </div>
                         </div>
                       </Card>
@@ -743,7 +747,6 @@ const Projects = () => {
           </div>
         )}
 
-        {/* Enhanced Empty State */}
         {filteredProjects.length === 0 && (
           <Card className="text-center py-12">
             <CardContent>

@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import api from '@/utils/api';
+import { Task } from '@/types';
 import { 
   Plus, Search, Filter, Calendar, Users, Clock, 
   CheckCircle2, AlertTriangle, Camera, FileText,
@@ -18,117 +20,65 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  status: 'En attente' | 'En cours' | 'En pause' | 'Terminé' | 'Annulé';
-  priority: 'Basse' | 'Moyenne' | 'Haute' | 'Critique';
-  assignee: string;
-  team: string;
-  startDate: string;
-  dueDate: string;
-  progress: number;
-  estimatedHours: number;
-  actualHours: number;
-  phase: string;
-  dependencies: string[];
-  checklist: {
-    id: string;
-    task: string;
-    completed: boolean;
-    completedBy?: string;
-    completedAt?: string;
-  }[];
-  materials: {
-    name: string;
-    quantity: number;
-    unit: string;
-    status: 'Commandé' | 'Livré' | 'En attente';
-  }[];
-  photos: {
-    id: string;
-    url: string;
-    caption: string;
-    date: string;
-  }[];
-  notes: {
-    id: string;
-    content: string;
-    author: string;
-    date: string;
-  }[];
-}
+// Local extension with optional fields to satisfy existing UI without breaking strict typing
+type TaskExt = Task & {
+  phase?: string;
+  team?: string;
+  estimatedHours?: number;
+  actualHours?: number;
+  materials?: { name: string; quantity: number; unit: string; status: string }[];
+  notes?: { id: string; content: string; author: string; date: string }[];
+  startDate?: string;
+};
 
-const mockTasks: Task[] = [
-  {
-    id: '1',
-    title: 'Coulage dalle niveau 2',
-    description: 'Coulage de la dalle béton du niveau 2 avec renforcement structural selon les plans architecte',
-    status: 'En cours',
-    priority: 'Haute',
-    assignee: 'Jean Kouassi',
-    team: 'Équipe Gros Œuvre',
-    startDate: '2024-01-15',
-    dueDate: '2024-01-25',
-    progress: 65,
-    estimatedHours: 48,
-    actualHours: 32,
-    phase: 'Gros œuvre',
-    dependencies: ['Ferraillage niveau 2'],
-    checklist: [
-      { id: '1', task: 'Préparation des coffrages', completed: true, completedBy: 'Jean K.', completedAt: '2024-01-16' },
-      { id: '2', task: 'Vérification du ferraillage', completed: true, completedBy: 'Marie D.', completedAt: '2024-01-17' },
-      { id: '3', task: 'Commande béton', completed: true, completedBy: 'Jean K.', completedAt: '2024-01-18' },
-      { id: '4', task: 'Coulage béton', completed: false },
-      { id: '5', task: 'Finition surface', completed: false },
-      { id: '6', task: 'Cure béton (7 jours)', completed: false }
-    ],
-    materials: [
-      { name: 'Béton C25/30', quantity: 45, unit: 'm³', status: 'Commandé' },
-      { name: 'Treillis soudé', quantity: 200, unit: 'm²', status: 'Livré' }
-    ],
-    photos: [
-      { id: '1', url: '/photos/1.jpg', caption: 'Début coulage', date: '2024-01-19' }
-    ],
-    notes: [
-      { id: '1', content: 'Retard de 2h sur livraison béton à prévoir', author: 'Jean Kouassi', date: '2024-01-19' }
-    ]
-  },
-  {
-    id: '2',
-    title: 'Installation électricité RDC',
-    description: 'Installation complète du réseau électrique au rez-de-chaussée',
-    status: 'En attente',
-    priority: 'Moyenne',
-    assignee: 'Pierre Diallo',
-    team: 'Équipe Électricité',
-    startDate: '2024-01-20',
-    dueDate: '2024-02-05',
-    progress: 0,
-    estimatedHours: 72,
-    actualHours: 0,
-    phase: 'Second œuvre',
-    dependencies: ['Cloisons RDC', 'Dalle niveau 1'],
-    checklist: [
-      { id: '1', task: 'Traçage des réseaux', completed: false },
-      { id: '2', task: 'Saignées murales', completed: false },
-      { id: '3', task: 'Pose gaines et câbles', completed: false },
-      { id: '4', task: 'Installation tableau électrique', completed: false },
-      { id: '5', task: 'Raccordements', completed: false },
-      { id: '6', task: 'Tests conformité', completed: false }
-    ],
-    materials: [
-      { name: 'Câble 2.5mm²', quantity: 500, unit: 'm', status: 'En attente' },
-      { name: 'Tableau électrique', quantity: 1, unit: 'unité', status: 'En attente' }
-    ],
-    photos: [],
-    notes: []
+// include optional extras on checklist
+type ChecklistItemExt = import('@/types').ChecklistItem & {
+  completedBy?: string;
+  completedAt?: string;
+};
+
+
+
+// Helpers for label mapping
+const statusLabel = (s: Task['status']) => {
+  switch (s) {
+    case 'todo': return 'En attente';
+    case 'in_progress': return 'En cours';
+    case 'done': return 'Terminé';
+    default: return s;
   }
-];
+};
 
-const TaskManagement = () => {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
+const priorityLabel = (p: Task['priority']) => {
+  switch (p) {
+    case 'high': return 'Haute';
+    case 'medium': return 'Moyenne';
+    case 'low': return 'Basse';
+    default: return p;
+  }
+};
+
+interface Props { projectId?: string }
+
+const TaskManagement = ({ projectId }: Props) => {
+  const [tasks, setTasks] = useState<TaskExt[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const url = projectId ? `/contractor/tasks?projectId=${projectId}` : '/contractor/tasks';
+        const { data } = await api.get<{ tasks: TaskExt[] }>(url);
+        setTasks(data.tasks);
+      } catch {
+        setError('Erreur de chargement des tâches');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTasks();
+  }, [projectId]);
   const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPhase, setFilterPhase] = useState('all');
@@ -137,16 +87,20 @@ const TaskManagement = () => {
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
+  if (loading) return <div className="p-4">Chargement...</div>;
+  if (error) return <div className="p-4 text-destructive">{error}</div>;
+
   // Filtrage des tâches
   const filteredTasks = tasks.filter((task) => {
+    const desc = task.description ?? '';
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.description.toLowerCase().includes(searchTerm.toLowerCase());
+                         desc.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesTab = activeTab === 'all' || 
-      (activeTab === 'active' && task.status === 'En cours') ||
-      (activeTab === 'pending' && task.status === 'En attente') ||
-      (activeTab === 'completed' && task.status === 'Terminé');
+      (activeTab === 'active' && task.status === 'in_progress') ||
+      (activeTab === 'pending' && task.status === 'todo') ||
+      (activeTab === 'completed' && task.status === 'done');
     const matchesPhase = filterPhase === 'all' || task.phase === filterPhase;
-    const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
+    const matchesPriority = filterPriority === 'all' || priorityLabel(task.priority) === filterPriority;
     
     return matchesSearch && matchesTab && matchesPhase && matchesPriority;
   });
@@ -154,10 +108,10 @@ const TaskManagement = () => {
   // Statistiques
   const stats = {
     total: tasks.length,
-    completed: tasks.filter(t => t.status === 'Terminé').length,
-    inProgress: tasks.filter(t => t.status === 'En cours').length,
-    pending: tasks.filter(t => t.status === 'En attente').length,
-    overdue: tasks.filter(t => new Date(t.dueDate) < new Date() && t.status !== 'Terminé').length
+    completed: tasks.filter(t => t.status === 'done').length,
+    inProgress: tasks.filter(t => t.status === 'in_progress').length,
+    pending: tasks.filter(t => t.status === 'todo').length,
+    overdue: tasks.filter(t => t.dueDate ? new Date(t.dueDate) < new Date() && t.status !== 'done' : false).length
   };
 
   const getStatusColor = (status: string) => {
@@ -409,7 +363,7 @@ const TaskManagement = () => {
                       <div className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <p className="font-medium">{new Date(task.dueDate).toLocaleDateString('fr-FR')}</p>
+                          <p className="font-medium">{task.dueDate ? new Date(task.dueDate).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR')}</p>
                           <p className="text-xs text-muted-foreground">Échéance</p>
                         </div>
                       </div>
@@ -417,7 +371,9 @@ const TaskManagement = () => {
                       <div className="flex items-center space-x-2">
                         <Clock className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <p className="font-medium">{task.actualHours}h / {task.estimatedHours}h</p>
+                          {(task.actualHours ?? task.estimatedHours) && (
+  <p className="font-medium">{task.actualHours ?? '-'}h / {task.estimatedHours ?? '-'}h</p>
+)}
                           <p className="text-xs text-muted-foreground">Temps</p>
                         </div>
                       </div>
@@ -425,8 +381,8 @@ const TaskManagement = () => {
                       <div className="flex items-center space-x-2">
                         <Camera className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <p className="font-medium">{task.photos.length} photos</p>
-                          <p className="text-xs text-muted-foreground">{task.notes.length} notes</p>
+                          <p className="font-medium">{(task.photos?.length ?? 0)} photos</p>
+                          <p className="text-xs text-muted-foreground">{(task.notes?.length ?? 0)} notes</p>
                         </div>
                       </div>
                     </div>
@@ -453,7 +409,7 @@ const TaskManagement = () => {
                         </Button>
                       </div>
                       <div className="space-y-1">
-                        {task.checklist.slice(0, 3).map((item) => (
+                        {task.checklist.slice(0, 3).map((item: ChecklistItemExt) => (
                           <div key={item.id} className="flex items-center space-x-2">
                             <Checkbox 
                               checked={item.completed} 
@@ -474,11 +430,11 @@ const TaskManagement = () => {
                     </div>
 
                     {/* Matériaux */}
-                    {task.materials.length > 0 && (
+                    {(task.materials?.length ?? 0) > 0 && (
                       <div className="space-y-2">
                         <h4 className="font-medium text-sm">Matériaux requis</h4>
                         <div className="flex flex-wrap gap-2">
-                          {task.materials.map((material, index) => (
+                          {(task.materials ?? []).map((material, index) => (
                             <Badge key={index} variant="outline" className="text-xs">
                               {material.name} ({material.quantity} {material.unit})
                               <span className={`ml-1 ${
@@ -503,7 +459,7 @@ const TaskManagement = () => {
       {/* Dialog pour les détails de la tâche */}
       {selectedTask && (
         <TaskDetailDialog 
-          task={selectedTask} 
+          task={selectedTask as TaskExt} 
           onClose={() => setSelectedTask(null)}
           onUpdateTask={(updatedTask) => {
             setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
@@ -593,9 +549,9 @@ const TaskDetailDialog = ({
   onClose, 
   onUpdateTask 
 }: { 
-  task: Task; 
+  task: TaskExt; 
   onClose: () => void; 
-  onUpdateTask: (task: Task) => void; 
+  onUpdateTask: (task: TaskExt) => void; 
 }) => {
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -622,22 +578,22 @@ const TaskDetailDialog = ({
                 <div>
                   <Label className="text-sm font-medium">Assigné à</Label>
                   <p className="text-sm">{task.assignee}</p>
-                  <p className="text-xs text-muted-foreground">{task.team}</p>
+                  {task.team && <p className="text-xs text-muted-foreground">{task.team}</p>}
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Phase</Label>
-                  <p className="text-sm">{task.phase}</p>
+                  {task.phase && <p className="text-sm">{task.phase}</p>}
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Date de début</Label>
-                  <p className="text-sm">{new Date(task.startDate).toLocaleDateString('fr-FR')}</p>
+                  <p className="text-sm">{task.startDate ? new Date(task.startDate).toLocaleDateString('fr-FR') : '—'}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Échéance</Label>
-                  <p className="text-sm">{new Date(task.dueDate).toLocaleDateString('fr-FR')}</p>
+                  <p className="text-sm">{task.dueDate ? new Date(task.dueDate).toLocaleDateString('fr-FR') : '—'}</p>
                 </div>
               </div>
             </div>
@@ -657,11 +613,11 @@ const TaskDetailDialog = ({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Temps estimé</Label>
-                  <p className="text-sm">{task.estimatedHours}h</p>
+                  {task.estimatedHours !== undefined && <p className="text-sm">{task.estimatedHours}h</p>}
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Temps réel</Label>
-                  <p className="text-sm">{task.actualHours}h</p>
+                  {task.actualHours !== undefined && <p className="text-sm">{task.actualHours}h</p>}
                 </div>
               </div>
             </div>
@@ -671,7 +627,7 @@ const TaskDetailDialog = ({
           <div className="space-y-4">
             <Label className="text-lg font-medium">Checklist de progression</Label>
             <div className="space-y-3">
-              {task.checklist.map((item) => (
+              {task.checklist.map((item: ChecklistItemExt) => (
                 <div key={item.id} className="flex items-start space-x-3 p-3 rounded-lg border">
                   <Checkbox 
                     checked={item.completed} 
@@ -683,7 +639,7 @@ const TaskDetailDialog = ({
                     </p>
                     {item.completed && item.completedBy && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Terminé par {item.completedBy} le {item.completedAt}
+                        Terminé par {item.completedBy}{item.completedAt && ` le ${item.completedAt}`}
                       </p>
                     )}
                   </div>
@@ -693,11 +649,11 @@ const TaskDetailDialog = ({
           </div>
           
           {/* Matériaux */}
-          {task.materials.length > 0 && (
+          {(task.materials?.length ?? 0) > 0 && (
             <div className="space-y-4">
               <Label className="text-lg font-medium">Matériaux requis</Label>
               <div className="space-y-2">
-                {task.materials.map((material, index) => (
+                {(task.materials ?? []).map((material, index) => (
                   <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
                     <div>
                       <p className="font-medium">{material.name}</p>
@@ -721,7 +677,7 @@ const TaskDetailDialog = ({
           <div className="space-y-4">
             <Label className="text-lg font-medium">Notes et commentaires</Label>
             <div className="space-y-3">
-              {task.notes.map((note) => (
+              {(task.notes ?? []).map((note) => (
                 <div key={note.id} className="p-3 rounded-lg border">
                   <div className="flex items-center justify-between mb-2">
                     <p className="font-medium text-sm">{note.author}</p>
@@ -750,7 +706,7 @@ const TaskDetailDialog = ({
   );
 };
 
-// Fonction helper pour le statut (à déplacer si réutilisée)
+
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'En cours': return 'bg-secondary text-secondary-foreground';

@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import api from '@/utils/api';
+import { Task } from '@/types';
 import { Plus, Search, Filter, Camera, User, Calendar, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -8,20 +10,45 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { mockTasks } from '@/data/mockData';
+
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 
 const Tasks = () => {
   const [activeTab, setActiveTab] = useState('all');
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const { data } = await api.get<{ tasks: Task[] }>('/contractor/tasks');
+        setTasks(data.tasks);
+      } catch {
+        setError('Impossible de récupérer les tâches');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTasks();
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredTasks = mockTasks.filter((task) => {
+  const statusLabel = (s: Task['status']) => {
+    switch (s) {
+      case 'todo': return 'En attente';
+      case 'in_progress': return 'En cours';
+      case 'done': return 'Terminé';
+    }
+  };
+
+  const filteredTasks = tasks.filter((task) => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesTab = activeTab === 'all' || 
-      (activeTab === 'active' && task.status === 'En cours') ||
-      (activeTab === 'pending' && task.status === 'En attente') ||
-      (activeTab === 'completed' && task.status === 'Terminé');
+      (activeTab === 'active' && task.status === 'in_progress') ||
+      (activeTab === 'pending' && task.status === 'todo') ||
+      (activeTab === 'completed' && task.status === 'done');
     return matchesSearch && matchesTab;
   });
 
@@ -42,6 +69,9 @@ const Tasks = () => {
       default: return 'text-muted-foreground';
     }
   };
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
+  if (error) return <div className="min-h-screen flex items-center justify-center text-destructive">{error}</div>;
 
   return (
     <div className="min-h-screen bg-background">
@@ -157,8 +187,8 @@ const Tasks = () => {
                         <p className="text-sm text-muted-foreground">{task.description}</p>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Badge className={getStatusColor(task.status)}>
-                          {task.status}
+                        <Badge className={getStatusColor(statusLabel(task.status))}>
+                          {statusLabel(task.status)}
                         </Badge>
                         <span className={`text-sm font-medium ${getPriorityColor(task.priority)}`}>
                           {task.priority}
@@ -176,11 +206,11 @@ const Tasks = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span>{new Date(task.dueDate).toLocaleDateString('fr-FR')}</span>
+                        <span>{task.dueDate ? new Date(task.dueDate).toLocaleDateString('fr-FR') : '—'}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Camera className="h-4 w-4 text-muted-foreground" />
-                        <span>{task.photos.length} photos</span>
+                        <span>{task.photos ? task.photos.length : 0} photos</span>
                       </div>
                     </div>
 

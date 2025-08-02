@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CheckSquare, ArrowLeft, Calendar, User, Flag, Building2, Save, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/layout/Header';
+import { mockProjects } from '@/data/mockData';
 import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,30 +11,112 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { mockProjects } from '@/data/mockData';
+
+import api from '@/utils/api';
+import { useEffect } from 'react';
+
+interface ChecklistItem {
+  text: string;
+  done: boolean;
+}
+
+interface TaskFormData {
+  title: string;
+  description: string;
+  projectId: string;
+  assignee: string;
+  priority: '' | 'high' | 'medium' | 'low';
+  dueDate: string;
+  checklist: ChecklistItem[];
+}
+
+// Payload type sent to backend when creating a task
+interface CreateTaskPayload {
+  projectId: string;
+  title: string;
+  description?: string | null;
+  priority?: 'high' | 'medium' | 'low';
+  dueDate?: string | null;
+  progress?: number;
+
+}
+
+
+interface ProjectOption {
+  id: string;
+  name?: string;
+  title?: string; // certains endpoints peuvent renvoyer title au lieu de name
+  description?: string;
+  location?: string;
+  progress?: number;
+}
+
+interface ProjectsResponse {
+  projects: ProjectOption[];
+}
 
 const NewTask = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await api.get<ProjectsResponse>('/contractor/projects');
+        if (data.projects && data.projects.length > 0) {
+          setProjects(data.projects);
+          console.log('Projects chargés depuis API', data.projects);
+        } else {
+          console.warn('Liste de projets vide depuis l’API, utilisation des données mock');
+          setProjects(mockProjects);
+        }
+      } catch (e) {
+        console.error('Erreur chargement projets', e);
+        // fallback offline/demo
+        setProjects(mockProjects);
+      }
+    })();
+  }, []);
+
+  const [formData, setFormData] = useState<TaskFormData>({
     title: '',
     description: '',
     projectId: '',
     assignee: '',
     priority: '',
     dueDate: '',
-    checklist: ['']
+    checklist: [{ text: '', done: false }]
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Ici, on enverrait les données au backend
-    console.log('Nouvelle tâche:', formData);
-    
-    // Simulation de création réussie
-    navigate('/tasks');
+    try {
+      // Conversion des champs numériques / dates si besoin
+      // calcul progression locale
+      const progress = formData.checklist.length
+        ? Math.round(
+            (formData.checklist.filter((item) => item.done).length / formData.checklist.length) * 100
+          )
+        : 0;
+
+      const payload: CreateTaskPayload = {
+        projectId: formData.projectId,
+        title: formData.title,
+        description: formData.description || null,
+        // Inclure priority seulement si choisi
+        ...(formData.priority ? { priority: formData.priority } : {}),
+        dueDate: formData.dueDate ? new Date(formData.dueDate + 'T00:00:00Z').toISOString() : null,
+        progress
+      };
+      await api.post('/contractor/tasks', payload);
+      navigate('/tasks');
+    } catch (err) {
+      console.error('Erreur création tâche', err);
+      alert("Impossible de créer la tâche. Veuillez vérifier les champs et votre connexion.");
+    }
   };
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = <K extends keyof TaskFormData>(field: K, value: TaskFormData[K]) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -43,13 +126,22 @@ const NewTask = () => {
   const addChecklistItem = () => {
     setFormData(prev => ({
       ...prev,
-      checklist: [...prev.checklist, '']
+      checklist: [...prev.checklist, { text: '', done: false }]
     }));
   };
 
   const updateChecklistItem = (index: number, value: string) => {
     const newChecklist = [...formData.checklist];
-    newChecklist[index] = value;
+    newChecklist[index] = { ...newChecklist[index], text: value };
+    setFormData(prev => ({
+      ...prev,
+      checklist: newChecklist
+    }));
+  };
+
+  const toggleChecklistDone = (index: number, done: boolean) => {
+    const newChecklist = [...formData.checklist];
+    newChecklist[index] = { ...newChecklist[index], done };
     setFormData(prev => ({
       ...prev,
       checklist: newChecklist
@@ -63,6 +155,12 @@ const NewTask = () => {
       checklist: newChecklist
     }));
   };
+
+  const checklistProgress = formData.checklist.length
+    ? Math.round(
+        (formData.checklist.filter((item) => item.done).length / formData.checklist.length) * 100
+      )
+    : 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -123,9 +221,9 @@ const NewTask = () => {
                       <SelectValue placeholder="Sélectionnez un projet" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockProjects.map((project) => (
+                      {projects.map((project) => (
                         <SelectItem key={project.id} value={project.id}>
-                          {project.name}
+                          {project.name ?? project.title ?? 'Projet sans nom'}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -154,10 +252,10 @@ const NewTask = () => {
             <CardContent className="space-y-4">
               {formData.checklist.map((item, index) => (
                 <div key={index} className="flex items-center space-x-2">
-                  <Checkbox />
+                  <Checkbox checked={item.done} onCheckedChange={(checked) => toggleChecklistDone(index, !!checked)} />
                   <Input
                     placeholder="Description de la sous-tâche"
-                    value={item}
+                    value={item.text}
                     onChange={(e) => updateChecklistItem(index, e.target.value)}
                   />
                   {formData.checklist.length > 1 && (
@@ -172,6 +270,22 @@ const NewTask = () => {
                   )}
                 </div>
               ))}
+
+              {/* Progression checklist */}
+              {formData.checklist.length > 0 && (
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Progression</span>
+                    <span>{checklistProgress}%</span>
+                  </div>
+                  <div className="w-full bg-accent rounded-full h-2">
+                    <div
+                      className="bg-secondary h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${checklistProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
               
               <Button
                 type="button"
@@ -210,24 +324,24 @@ const NewTask = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="priority">Priorité *</Label>
-                <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
+                <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value as TaskFormData['priority'])}>
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionnez la priorité" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Haute">
+                    <SelectItem value="high">
                       <div className="flex items-center space-x-2">
                         <Flag className="h-4 w-4 text-destructive" />
                         <span>Haute</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="Moyenne">
+                    <SelectItem value="medium">
                       <div className="flex items-center space-x-2">
                         <Flag className="h-4 w-4 text-warning" />
                         <span>Moyenne</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="Basse">
+                    <SelectItem value="low">
                       <div className="flex items-center space-x-2">
                         <Flag className="h-4 w-4 text-success" />
                         <span>Basse</span>
@@ -250,26 +364,30 @@ const NewTask = () => {
               </CardHeader>
               <CardContent>
                 {(() => {
-                  const project = mockProjects.find(p => p.id === formData.projectId);
-                  return project ? (
+                  const project = projects.find(p => p.id === formData.projectId);
+                  if (!project) return null;
+
+                  const progress = project.progress ?? 0;
+
+                  return (
                     <div className="space-y-2">
-                      <p className="font-medium">{project.name}</p>
-                      <p className="text-sm text-muted-foreground">{project.description}</p>
-                      <p className="text-sm text-muted-foreground">📍 {project.location}</p>
+                      <p className="font-medium">{project.name ?? project.title ?? 'Projet sans nom'}</p>
+                      <p className="text-sm text-muted-foreground">{project.description ?? '—'}</p>
+                      <p className="text-sm text-muted-foreground">📍 {project.location ?? '—'}</p>
                       <div className="mt-3">
                         <div className="flex justify-between text-sm mb-1">
                           <span>Progression du projet</span>
-                          <span>{project.progress}%</span>
+                          <span>{progress}%</span>
                         </div>
                         <div className="w-full bg-accent rounded-full h-2">
-                          <div 
-                            className="bg-secondary h-2 rounded-full transition-all duration-300" 
-                            style={{ width: `${project.progress}%` }}
+                          <div
+                            className="bg-secondary h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${progress}%` }}
                           />
                         </div>
                       </div>
                     </div>
-                  ) : null;
+                  );
                 })()}
               </CardContent>
             </Card>

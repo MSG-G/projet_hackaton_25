@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Building2, MapPin, Calendar, DollarSign, Users, Save, ArrowLeft } from 'lucide-react';
+import { Building2, MapPin, Calendar, DollarSign, Save, ArrowLeft } from 'lucide-react';
+import api from '@/utils/api';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -13,26 +14,37 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 const NewProject = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    name: '',
+    title: '',
     description: '',
     location: '',
     coordinates: { lat: '', lng: '' },
-    client: '',
+    category: '',
     budget: '',
     startDate: '',
     deadline: '',
-    priority: '',
-    teamSize: '',
-    category: ''
+    priority: 'medium',
+    teamSize: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Ici, on enverrait les données au backend
-    console.log('Nouveau projet:', formData);
-    
-    // Simulation de création réussie
-    navigate('/projects');
+
+    try {
+      const payload = {
+        title: formData.title,
+        description: formData.description || null,
+        location: formData.location || null,
+        budget: formData.budget ? Number(formData.budget) : null,
+        startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,
+        deadline: formData.deadline ? new Date(formData.deadline).toISOString() : null,
+        priority: formData.priority,
+        teamSize: formData.teamSize || null
+      };
+      await api.post('/contractor/projects', payload);
+      navigate('/projects');
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -76,21 +88,12 @@ const NewProject = () => {
                   <Input
                     id="name"
                     placeholder="Ex: Centre Commercial Plateau"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    value={formData.title}
+                    onChange={(e) => handleInputChange('title', e.target.value)}
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="client">Client *</Label>
-                  <Input
-                    id="client"
-                    placeholder="Ex: SOGEMAP"
-                    value={formData.client}
-                    onChange={(e) => handleInputChange('client', e.target.value)}
-                    required
-                  />
-                </div>
+
               </div>
 
               <div className="space-y-2">
@@ -106,7 +109,6 @@ const NewProject = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="category">Catégorie *</Label>
                 <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionnez une catégorie" />
@@ -219,9 +221,9 @@ const NewProject = () => {
                     <SelectValue placeholder="Sélectionnez la priorité" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Haute">Haute</SelectItem>
-                    <SelectItem value="Moyenne">Moyenne</SelectItem>
-                    <SelectItem value="Basse">Basse</SelectItem>
+                    <SelectItem value="high">Haute</SelectItem>
+                    <SelectItem value="medium">Moyenne</SelectItem>
+                    <SelectItem value="low">Basse</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
