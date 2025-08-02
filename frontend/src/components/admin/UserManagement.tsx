@@ -180,68 +180,6 @@ export default function UserManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total utilisateurs</p>
-                <p className="text-2xl font-bold">{userStats.total}</p>
-              </div>
-              <Users className="h-8 w-8 text-primary" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Actifs</p>
-                <p className="text-2xl font-bold text-success">{userStats.active}</p>
-              </div>
-              <UserCheck className="h-8 w-8 text-success" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Entrepreneurs</p>
-                <p className="text-2xl font-bold text-blue-600">{userStats.contractors}</p>
-              </div>
-              <Shield className="h-8 w-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Fournisseurs</p>
-                <p className="text-2xl font-bold text-green-600">{userStats.suppliers}</p>
-              </div>
-              <Shield className="h-8 w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">En attente</p>
-                <p className="text-2xl font-bold text-warning">{userStats.pending}</p>
-              </div>
-              <AlertTriangle className="h-8 w-8 text-warning" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Controls */}
       <Card>

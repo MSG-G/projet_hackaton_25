@@ -63,7 +63,7 @@ const Auth = () => {
       } else {
         toast({
           title: "Erreur de connexion",
-          description: "Email ou mot de passe incorrect. Utilisez 'demo123' comme mot de passe.",
+          description: "Email ou mot de passe incorrect.",
           variant: "destructive",
         });
       }
@@ -120,13 +120,16 @@ const Auth = () => {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center space-x-2">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white">
-              <span className="text-2xl font-bold text-primary">SC</span>
-            </div>
-            <span className="text-2xl font-bold text-white">SmartChantier</span>
+            <img
+              src="/bluidtech-logo.jpg"
+              alt="BluidTechAfrica logo"
+              className="h-12 w-12 rounded-xl bg-white"
+            />
+            <span className="text-2xl font-bold text-white">BluidTechAfrica</span>
           </Link>
           <p className="text-white/80 mt-2">Connectez-vous à votre espace professionnel</p>
         </div>
+
 
         <Card className="shadow-glow border-0">
           <CardHeader className="text-center">
@@ -240,13 +243,13 @@ const Auth = () => {
                           <span className="text-sm">Fournisseur</span>
                         </Label>
                       </div>
-                      <div className="flex items-center space-x-2 p-3 rounded-lg border border-input hover:bg-accent cursor-pointer" onClick={() => setUserType('admin')}>
+                      {/* <div className="flex items-center space-x-2 p-3 rounded-lg border border-input hover:bg-accent cursor-pointer" onClick={() => setUserType('admin')}>
                         <RadioGroupItem value="admin" id="admin" />
                         <Label htmlFor="admin" className="cursor-pointer flex items-center space-x-2">
                           <Shield className="h-4 w-4 text-destructive" />
                           <span className="text-sm">Admin</span>
                         </Label>
-                      </div>
+                      </div> */}
                     </RadioGroup>
                   </div>
 
