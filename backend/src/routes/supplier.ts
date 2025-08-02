@@ -30,6 +30,5 @@ supplierRouter.delete('/products/:id', deleteProduct);
 
 import { listOrders, updateOrderStatus } from '../controllers/order.controller.js';
 
-// Orders
 supplierRouter.get('/orders', listOrders);
 supplierRouter.put('/orders/:id', updateOrderStatus);

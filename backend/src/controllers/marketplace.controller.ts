@@ -3,11 +3,6 @@ import type { Request, Response } from 'express';
 
 const prisma = new PrismaClient();
 
-/**
- * GET /marketplace/products
- * Liste publique des produits disponibles des fournisseurs.
- * Accepte éventuellement des paramètres de filtre (category, q, minPrice, maxPrice, sort, page, limit).
- */
 export async function listProducts(req: Request, res: Response) {
   const {
     category,
@@ -40,7 +35,7 @@ export async function listProducts(req: Request, res: Response) {
       orderBy.createdAt = 'desc';
       break;
     default:
-      orderBy.createdAt = 'desc'; // fallback popularity/newest
+      orderBy.createdAt = 'desc';
   }
 
   const products = await prisma.product.findMany({
@@ -64,7 +59,7 @@ export async function listProducts(req: Request, res: Response) {
     id: p.id,
     name: p.name,
     price: Number(p.price),
-    unit: 'pièce', // TODO: store real unit
+    unit: 'pièce',
     image: Array.isArray(p.images) && p.images.length ? p.images[0] : null,
     category: p.category?.name ?? 'Autre',
     supplier: `${p.supplier?.firstName ?? ''} ${p.supplier?.lastName ?? ''}`.trim() || 'Fournisseur',

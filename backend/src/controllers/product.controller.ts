@@ -5,7 +5,6 @@ import { z } from 'zod';
 
 const prisma = new PrismaClient();
 
-/* ------------------------- Schemas & Validators ------------------------- */
 const productSchema = z.object({
   name: z.string().min(2),
   description: z.string().nullable().optional(),
@@ -59,7 +58,7 @@ export async function getProducts(req: Request, res: Response) {
 export async function createProduct(req: Request, res: Response) {
   // @ts-expect-error added in auth middleware
   const supplierId: string = req.user!.userId;
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+
   const files = (req as any).files as Express.Multer.File[] ?? [];
   const images = files.map(f => `/uploads/${path.basename(f.path)}`);
 
@@ -88,7 +87,6 @@ export async function updateProduct(req: Request, res: Response) {
   const existing = await prisma.product.findFirst({ where: { id: productId, supplierId } });
   if (!existing) return res.status(404).json({ message: 'Produit introuvable' });
 
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   const files = (req as any).files as Express.Multer.File[] ?? [];
   const newImages = files.map(f => `/uploads/${path.basename(f.path)}`);
 

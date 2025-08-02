@@ -1,9 +1,3 @@
-/*
-  Autonomous seed script for SmartChantier backend.
-  All mock data is embedded directly in this file so that we no longer depend
-  on the separate frontend mockData.ts file.
-*/
-
 import {
   PrismaClient,
   UserRole,
@@ -17,9 +11,6 @@ import {
 
 const prisma = new PrismaClient();
 
-// ---------------------------------------------------------------------------
-// Embedded mock data (extracted from former frontend/src/data/mockData.ts)
-// ---------------------------------------------------------------------------
 
 const mockProjects = [
   {
@@ -235,18 +226,11 @@ const mockAnalyticsSnapshots = [
   }
 ] as const;
 
-// ---------------------------------------------------------------------------
-// Utility helpers
-// ---------------------------------------------------------------------------
 
 const slug = (str: string) => str.toLowerCase().replace(/\s+/g, '_');
 
-// ---------------------------------------------------------------------------
-// Seeding logic
-// ---------------------------------------------------------------------------
 
 async function main() {
-  // 1. Create Supplier & Contractor users
   for (const s of mockSuppliers) {
     await prisma.user.upsert({
       where: { email: slug(s.name) + '@example.com' },
@@ -287,7 +271,6 @@ async function main() {
     });
   }
 
-  // 2. Categories & Products
   const categoryCache: Record<string, string> = {};
   for (const pr of mockProducts) {
     let categoryId = categoryCache[pr.category];
@@ -318,7 +301,6 @@ async function main() {
     });
   }
 
-  // 3. Projects & Phases
   for (const proj of mockProjects) {
     const contractor = await prisma.user.findUnique({ where: { email: slug(proj.contractor) + '@example.com' } });
     if (!contractor) continue;
@@ -354,7 +336,6 @@ async function main() {
     });
   }
 
-  // 4. Tasks
   for (const t of mockTasks) {
     const project = await prisma.project.findFirst({ where: { id: t.projectId } });
     if (!project) continue;
@@ -376,12 +357,10 @@ async function main() {
     });
   }
 
-  // 5. Orders & Delivery
   for (const o of mockOrders) {
     const contractor = await prisma.user.findUnique({ where: { email: slug(o.client.name) + '@example.com' } });
     if (!contractor) continue;
 
-    // naively link first supplier from items
     const supplierName = o.items[0].name.includes('Ciment') ? 'CIMAF Distribution' : 'SIDERCEM';
     const supplier = await prisma.user.findUnique({ where: { email: slug(supplierName) + '@example.com' } });
 
@@ -407,22 +386,17 @@ async function main() {
 
     const order = await prisma.order.create({ data: orderData });
 
-    // items
     for (const it of o.items) {
       const prod = await prisma.product.findFirst({ where: { name: it.name } });
       if (!prod) continue;
       await prisma.orderItem.create({ data: { orderId: order.id, productId: prod.id, qty: it.quantity, unitPrice: it.unitPrice, subtotal: it.total } });
     }
 
-    // delivery record
     await prisma.delivery.create({
       data: { orderId: order.id, status: DeliveryStatus.delivered, trackingNumber: o.trackingNumber }
     });
   }
 
-  // 6. Extra data seeding (Payments, Files, Cart, Audit, API keys, Analytics)
-
-  // Payments linked to the first order
   const firstOrder = await prisma.order.findFirst();
   if (firstOrder) {
     for (const pay of mockPayments) {
@@ -438,7 +412,7 @@ async function main() {
     }
   }
 
-  // File uploads
+
   const owner = await prisma.user.findFirst();
   if (owner) {
     for (const f of mockFileUploads) {
@@ -448,7 +422,6 @@ async function main() {
     }
   }
 
-  // Cart item linked to first contractor & product
   const firstContractor = await prisma.user.findFirst({ where: { role: 'contractor' } });
   const firstProduct = await prisma.product.findFirst();
   if (firstContractor && firstProduct) {
@@ -461,7 +434,6 @@ async function main() {
     });
   }
 
-  // Audit log & API key
   if (owner) {
     await prisma.auditLog.create({
       data: {
@@ -500,7 +472,7 @@ async function main() {
     });
   }
 
-  console.log('🌱  Database seeded successfully');
+  console.log('Database seeded successfully');
 }
 
 main()

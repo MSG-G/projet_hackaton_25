@@ -3,10 +3,6 @@ import prisma from '../lib/prisma.js';
 import { authorize } from '../middleware/auth.js';
 import { ProjectStatus } from '@prisma/client';
 
-/**
- * GET /admin/stats
- * Returns aggregated statistics for the dashboard.
- */
 export const getStats = async (_req: Request, res: Response) => {
   try {
     const [contractorCount, supplierCount, adminCount] = await Promise.all([

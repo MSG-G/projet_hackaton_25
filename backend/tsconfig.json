@@ -7,21 +7,13 @@
     "types": ["node"],
     
     
-
-    /* File Layout */
-    // "rootDir": "./src",
-    // "outDir": "./dist",
-
-    /* Other Outputs */
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
 
-    /* Stricter Typechecking Options */
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": false,
 
-    /* Recommended Options */
     "strict": true,
     "jsx": "react-jsx",
     "verbatimModuleSyntax": false,

@@ -22,7 +22,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "react-router-dom";
 
-// Extended project data for admin oversight
 const allProjects = [
   {
     id: 1,
