@@ -6,7 +6,6 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-// Fix default icon paths (Vite)
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
   iconUrl: markerIcon,
@@ -22,7 +21,6 @@ const DEFAULT_POSITION: [number, number] = [14.7167, -17.4677]; // Dakar par dé
 export default function DeliveryLocationPicker({ onLocationSelect }: Props) {
   const [position, setPosition] = useState<[number, number] | null>(null);
 
-  // Try browser geolocation once on mount
   useEffect(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -32,12 +30,12 @@ export default function DeliveryLocationPicker({ onLocationSelect }: Props) {
         onLocationSelect({ lat: coords[0], lng: coords[1] });
       },
       () => {
-        // ignore error, keep default
+        
       }
     );
   }, []);
 
-  // Draggable marker component to update coords
+  
   function DraggableMarker() {
     const map = useMapEvents({
       click(e) {

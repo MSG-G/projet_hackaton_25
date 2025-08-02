@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client';
 
-// Singleton Prisma instance to avoid exhausting database connections
 const globalForPrisma = global as unknown as { prisma?: PrismaClient };
 
 export const prisma =

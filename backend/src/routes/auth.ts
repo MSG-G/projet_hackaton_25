@@ -14,7 +14,6 @@ const credsSchema = z.object({
   role: z.nativeEnum(UserRole).optional()
 });
 
-// Register (optional for admin seeding – can be disabled in prod)
 authRouter.post('/register', async (req, res) => {
   const parse = credsSchema.safeParse(req.body);
   if (!parse.success) return res.status(400).json({ errors: parse.error.flatten() });
@@ -51,7 +50,7 @@ authRouter.post('/login', async (req, res) => {
   return res.json({ accessToken, refreshToken, user: { id: user.id, email: user.email, role: user.role } });
 });
 
-// Refresh token
+
 authRouter.post('/refresh', async (req, res) => {
   const { refreshToken } = req.body as { refreshToken?: string };
   if (!refreshToken) return res.status(400).json({ message: 'Missing refreshToken' });
@@ -66,7 +65,7 @@ authRouter.post('/refresh', async (req, res) => {
   return res.json({ accessToken });
 });
 
-// Logout
+
 authRouter.post('/logout', async (req, res) => {
   const { refreshToken } = req.body as { refreshToken?: string };
   if (refreshToken) {
@@ -75,7 +74,6 @@ authRouter.post('/logout', async (req, res) => {
   return res.json({ message: 'Logged out' });
 });
 
-// Protected route example
 authRouter.get('/me', authenticate, async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: (req as any).user.userId }, select: { id: true, email: true, role: true } });
   return res.json({ user });

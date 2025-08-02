@@ -9,7 +9,6 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = getAuthToken();
   if (token) {
-    // Ensure headers object exists before assignment (required in strict mode)
     config.headers = {
       ...(config.headers ?? {}),
       Authorization: `Bearer ${token}`,
@@ -18,8 +17,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Projects
-// TODO: Define a proper `Project` interface that matches backend shape
 export const getProjects = async (): Promise<Project[]> => {
   const { data } = await api.get<{ projects: Project[] }>('/contractor/projects');
   return data.projects;
@@ -39,10 +36,7 @@ export const deleteProject = async (id: string): Promise<void> => {
   await api.delete(`/contractor/projects/${id}`);
 };
 
-// Phases
 export const addPhase = async (projectId: string, payload: Partial<Phase>): Promise<Phase> => {
-  // Backend route: contractorRouter.use('/phases', phasesRouter) where phasesRouter defines POST '/:projectId/phases'
-  // -> Full path is /contractor/phases/:projectId/phases
   const { data } = await api.post<{ phase: Phase }>(`/contractor/phases/${projectId}/phases`, payload);
   return data.phase;
 };
@@ -52,7 +46,6 @@ export const updatePhase = async (phaseId: string, payload: Partial<Phase>): Pro
   return data.phase;
 };
 
-// Tasks
 export const addTask = async (payload: Partial<Task>): Promise<Task> => {
   const { data } = await api.post<{ task: Task }>('/contractor/tasks', payload);
   return data.task;
@@ -63,7 +56,6 @@ export const updateTask = async (taskId: string, payload: Partial<Task>): Promis
   return data.task;
 };
 
-// Cart & Orders
 export const getCart = async (): Promise<CartItem[]> => {
   const { data } = await api.get<{ items: CartItem[] }>('/contractor/cart');
   return data.items;

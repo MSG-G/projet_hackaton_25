@@ -30,7 +30,6 @@ app.use('/auth', authRouter);
 app.use('/supplier', supplierRouter);
 app.use('/admin', adminRouter);
 
-// Public marketplace routes
 app.use('/marketplace', marketplaceRouter);
 
 app.use('/contractor', contractorRouter);
