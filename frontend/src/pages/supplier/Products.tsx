@@ -52,7 +52,7 @@ export default function SupplierProducts() {
     setLoading(true);
     supplierApi
       .getProducts()
-      .then(setProducts)
+      .then((data) => setProducts(data as Product[]))
       .catch(console.error)
       .finally(() => setLoading(false));
   };

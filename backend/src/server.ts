@@ -6,7 +6,7 @@ import pino from 'pino';
 import { authRouter } from './routes/auth.js';
 import { supplierRouter } from './routes/supplier.js';
 import { adminRouter } from './routes/admin.js';
-import { authRouter } from './routes/auth';
+import { marketplaceRouter } from './routes/marketplace.js';
 import { contractorRouter } from './routes/contractor/index.js';
 
 dotenv.config();
@@ -29,6 +29,9 @@ app.use('/auth', authRouter);
 
 app.use('/supplier', supplierRouter);
 app.use('/admin', adminRouter);
+
+// Public marketplace routes
+app.use('/marketplace', marketplaceRouter);
 
 app.use('/contractor', contractorRouter);
 
