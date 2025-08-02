@@ -1,0 +1,400 @@
+// Prisma schema for SmartChantier backend
+// Datasource & generator
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --------------------
+// Enums
+// --------------------
+
+enum UserRole {
+  contractor
+  supplier
+  admin
+}
+
+enum ProjectStatus {
+  draft
+  in_progress
+  completed
+  archived
+}
+
+enum PriorityLevel {
+  low
+  medium
+  high
+  critical
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  blocked
+  done
+}
+
+enum OrderStatus {
+  pending
+  paid
+  shipped
+  delivered
+  cancelled
+}
+
+enum PaymentProvider {
+  stripe
+  paypal
+  manual
+}
+
+enum SubscriptionPlan {
+  free
+  basic
+  pro
+  enterprise
+}
+
+enum SubscriptionStatus {
+  active
+  past_due
+  cancelled
+}
+
+enum DeliveryStatus {
+  preparing
+  in_transit
+  delivered
+  issue
+}
+
+enum NotificationType {
+  system
+  project
+  order
+  delivery
+  subscription
+  security
+}
+
+enum NotificationPriority {
+  normal
+  high
+  critical
+}
+
+enum PhaseStatus {
+  pending
+  in_progress
+  completed
+}
+
+enum DeliveryMethod {
+  standard
+  express
+}
+
+// --------------------
+// Models
+// --------------------
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String?
+  firstName    String?
+  lastName     String?
+  role         UserRole
+  avatarUrl    String?
+  phone        String?
+  isVerified   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  projects        Project[]        @relation("ContractorProjects")
+  tasks           Task[]           @relation("UserTasks")
+  products        Product[]        @relation("SupplierProducts")
+  orders          Order[]          @relation("ContractorOrders")
+  supplierOrders  Order[]          @relation("SupplierOrders") // <-- ajouté ici
+  supplierProfile SupplierProfile?
+  subscriptions   Subscription[]
+  notifications   Notification[]
+  cartItems       CartItem[]
+  uploads         FileUpload[]
+  auditLogs       AuditLog[]       @relation("ActorLogs")
+  refreshTokens   RefreshToken[]
+  apiKeys         ApiKey[]
+}
+
+model SupplierProfile {
+  id          String  @id @default(uuid())
+  userId      String  @unique
+  logo        String?
+  description String?
+  location    String?
+  coordinates Json?
+  rating      Float?
+  reviews     Int?
+  verified    Boolean @default(false)
+  since       String?
+  categories  String?
+  stats       Json?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model ProductCategory {
+  id       String            @id @default(uuid())
+  name     String            @unique
+  parentId String?
+  parent   ProductCategory?  @relation("CategoryParent", fields: [parentId], references: [id])
+  children ProductCategory[] @relation("CategoryParent")
+  products Product[]
+}
+
+model Product {
+  id             String   @id @default(uuid())
+  supplierId     String
+  categoryId     String?
+  name           String
+  description    String?
+  price          Decimal  @db.Decimal(10, 2)
+  currency       String   @default("XOF")
+  stock          Int
+  images         Json?
+  inStock        Boolean  @default(true)
+  discount       Int? // percentage
+  features       Json?
+  specifications Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  supplier   User             @relation("SupplierProducts", fields: [supplierId], references: [id])
+  category   ProductCategory? @relation(fields: [categoryId], references: [id])
+  orderItems OrderItem[]
+  cartItems  CartItem[]
+}
+
+model Project {
+  id           String        @id @default(uuid())
+  contractorId String
+  title        String
+  description  String?
+  location     String?
+  coordinates  Json?
+  status       ProjectStatus @default(draft)
+  priority     PriorityLevel @default(medium)
+  budget       Decimal?      @db.Decimal(12, 2)
+  spent        Decimal?      @db.Decimal(12, 2)
+  progress     Int? // percentage
+  team         Int?
+  startDate    DateTime?
+  deadline     DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  contractor User    @relation("ContractorProjects", fields: [contractorId], references: [id])
+  phases     Phase[]
+  tasks      Task[]
+  orders     Order[]
+}
+
+model Phase {
+  id        String      @id @default(uuid())
+  projectId String
+  order     Int?
+  name      String
+  progress  Int
+  status    PhaseStatus @default(pending)
+
+  project Project @relation(fields: [projectId], references: [id])
+}
+
+model Task {
+  id          String        @id @default(uuid())
+  projectId   String
+  assigneeId  String?
+  title       String
+  description String?
+  priority    PriorityLevel @default(medium)
+  status      TaskStatus    @default(todo)
+  dueDate     DateTime?
+  progress    Int?
+  attachments Json?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  project   Project         @relation(fields: [projectId], references: [id])
+  assignee  User?           @relation("UserTasks", fields: [assigneeId], references: [id])
+  checklist ChecklistItem[]
+}
+
+model ChecklistItem {
+  id        String  @id @default(uuid())
+  taskId    String
+  title     String
+  completed Boolean @default(false)
+
+  task Task @relation(fields: [taskId], references: [id])
+}
+
+model CartItem {
+  id           String   @id @default(uuid())
+  contractorId String
+  productId    String
+  quantity     Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  contractor User    @relation(fields: [contractorId], references: [id])
+  product    Product @relation(fields: [productId], references: [id])
+}
+
+model Order {
+  id              String          @id @default(uuid())
+  contractorId    String
+  supplierId      String
+  projectId       String?
+  total           Decimal         @db.Decimal(12, 2)
+  currency        String          @default("XOF")
+  status          OrderStatus     @default(pending)
+  paymentStatus   String?
+  subtotal        Decimal?        @db.Decimal(12, 2)
+  tax             Decimal?        @db.Decimal(12, 2)
+  shipping        Decimal?        @db.Decimal(12, 2)
+  orderDate       DateTime?
+  deliveryDate    DateTime?
+  shippingAddress Json?
+  trackingNumber  String?
+  deliveryMethod  DeliveryMethod?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  contractor User        @relation("ContractorOrders", fields: [contractorId], references: [id])
+  supplier   User        @relation("SupplierOrders", fields: [supplierId], references: [id])
+  project    Project?    @relation(fields: [projectId], references: [id])
+  items      OrderItem[]
+  delivery   Delivery?
+  payments   Payment[]
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String
+  qty       Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  subtotal  Decimal @db.Decimal(12, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model Delivery {
+  id             String         @id @default(uuid())
+  orderId        String         @unique
+  status         DeliveryStatus @default(preparing)
+  carrier        String?
+  trackingNumber String?
+  estimatedDate  DateTime?
+  deliveredAt    DateTime?
+
+  order Order @relation(fields: [orderId], references: [id])
+}
+
+model Payment {
+  id          String          @id @default(uuid())
+  orderId     String
+  provider    PaymentProvider
+  amount      Decimal         @db.Decimal(12, 2)
+  currency    String          @default("XOF")
+  status      String?
+  providerRef String?
+  createdAt   DateTime        @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+}
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  userId             String
+  plan               SubscriptionPlan   @default(free)
+  status             SubscriptionStatus @default(active)
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  paymentProvider    PaymentProvider?
+  providerSubId      String?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String               @id @default(uuid())
+  userId    String
+  type      NotificationType
+  payload   Json
+  priority  NotificationPriority @default(normal)
+  isRead    Boolean              @default(false)
+  createdAt DateTime             @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model FileUpload {
+  id           String   @id @default(uuid())
+  ownerId      String
+  originalName String
+  mimeType     String
+  size         Int
+  path         String
+  createdAt    DateTime @default(now())
+
+  owner User @relation(fields: [ownerId], references: [id])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  action     String
+  target     String
+  beforeData Json?
+  afterData  Json?
+  createdAt  DateTime @default(now())
+
+  actor User @relation("ActorLogs", fields: [actorId], references: [id])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model ApiKey {
+  id         String    @id @default(uuid())
+  userId     String
+  key        String    @unique
+  scopes     Json
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model AnalyticsSnapshot {
+  id        String   @id @default(uuid())
+  data      Json
+  createdAt DateTime @default(now())
+}
