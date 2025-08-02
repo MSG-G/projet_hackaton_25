@@ -3,7 +3,7 @@ import axios from 'axios';
 interface RefreshResponse { accessToken: string; }
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000',
+  baseURL: 'http://localhost:4000',
   withCredentials: false
 });
 
@@ -12,9 +12,12 @@ api.interceptors.request.use(cfg => {
   const token = localStorage.getItem('accessToken');
   if (token) {
     if (cfg.headers) {
-      (cfg.headers as any)['Authorization'] = `Bearer ${token}`;
+      cfg.headers = {
+        ...cfg.headers,
+        Authorization: `Bearer ${token}`,
+      };
     } else {
-      cfg.headers = { Authorization: `Bearer ${token}` } as any;
+      cfg.headers = { Authorization: `Bearer ${token}` } as Record<string, string>;
     }
   }
   return cfg;

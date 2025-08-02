@@ -10,6 +10,7 @@ interface User {
   role: 'contractor' | 'supplier' | 'admin';
   avatar?: string;
   joinedAt: string;
+  token?: string;
 }
 
 interface LoginResponse { accessToken: string; refreshToken: string; user: User }

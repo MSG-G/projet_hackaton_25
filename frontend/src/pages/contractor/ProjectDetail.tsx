@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import api from "@/utils/api";
 import { useParams } from "react-router-dom";
 import { 
   ArrowLeft, Calendar, Users, MapPin, DollarSign, 
@@ -18,123 +19,7 @@ import TaskManagement from "@/components/project/TaskManagement";
 import NewOrderForm from "@/components/project/NewOrderForm";
 import PhotoManager from "@/components/project/PhotoManager";
 
-const project = {
-  id: 1,
-  name: "Centre Commercial Plateau",
-  location: "Abidjan, Plateau",
-  progress: 75,
-  status: "En cours",
-  priority: "Haute",
-  budget: "2.5M",
-  spent: "1.8M",
-  team: 12,
-  startDate: "2023-08-15",
-  deadline: "2024-03-15",
-  description: "Construction d'un centre commercial moderne de 3 étages avec parking souterrain, espaces commerciaux et zone de restauration.",
-  tasks: { total: 24, completed: 18, pending: 6 },
-  alerts: 2,
-  image: "🏢"
-};
 
-const timeline = [
-  {
-    phase: "Fondations",
-    status: "completed",
-    startDate: "2023-08-15",
-    endDate: "2023-10-30",
-    progress: 100,
-    tasks: 8
-  },
-  {
-    phase: "Structure",
-    status: "completed",
-    startDate: "2023-11-01",
-    endDate: "2024-01-15",
-    progress: 100,
-    tasks: 12
-  },
-  {
-    phase: "Gros œuvre",
-    status: "in-progress",
-    startDate: "2024-01-16",
-    endDate: "2024-02-28",
-    progress: 65,
-    tasks: 10
-  },
-  {
-    phase: "Second œuvre",
-    status: "pending",
-    startDate: "2024-03-01",
-    endDate: "2024-03-15",
-    progress: 0,
-    tasks: 8
-  }
-];
-
-const tasks = [
-  {
-    id: 1,
-    title: "Coulage dalle niveau 2",
-    status: "completed",
-    assignee: "Équipe A",
-    dueDate: "2024-01-20",
-    priority: "Haute"
-  },
-  {
-    id: 2,
-    title: "Installation électricité RDC",
-    status: "in-progress",
-    assignee: "Équipe B",
-    dueDate: "2024-02-05",
-    priority: "Moyenne"
-  },
-  {
-    id: 3,
-    title: "Pose carrelage hall principal",
-    status: "pending",
-    assignee: "Équipe C",
-    dueDate: "2024-02-15",
-    priority: "Basse"
-  }
-];
-
-const orders = [
-  {
-    id: "CMD-001",
-    supplier: "CIMAF",
-    items: "Ciment Portland x50 sacs",
-    amount: "425 000 FCFA",
-    status: "Livré",
-    date: "2024-01-15"
-  },
-  {
-    id: "CMD-002",
-    supplier: "SIDERCEM",
-    items: "Fer à béton HA 12mm x2T",
-    amount: "1 300 000 FCFA",
-    status: "En transit",
-    date: "2024-01-20"
-  }
-];
-
-const comments = [
-  {
-    id: 1,
-    author: "Jean Kouassi",
-    role: "Chef de chantier",
-    date: "2024-01-18",
-    content: "Avancement satisfaisant sur la dalle du niveau 2. Quelques ajustements nécessaires sur l'électricité.",
-    avatar: "JK"
-  },
-  {
-    id: 2,
-    author: "Marie Diallo",
-    role: "Architecte",
-    date: "2024-01-17",
-    content: "Les plans ont été mis à jour suite aux modifications demandées. Merci de valider avant de continuer.",
-    avatar: "MD"
-  }
-];
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -145,9 +30,54 @@ const getStatusIcon = (status: string) => {
   }
 };
 
+interface Phase { id: string; name: string; progress: number; status: string; startDate?: string; endDate?: string; tasks?: number; }
+interface Task { id: string; title: string; status: string; assignee?: string; dueDate?: string; priority: string; }
+interface Order { id: string; supplier: string; items: string; amount: string; status: string; date: string; }
+interface CommentItem { id: string; author: string; role?: string; date: string; content: string; avatar?: string; }
+
+interface Project {
+  id: string;
+  title: string;
+  location?: string;
+  description?: string;
+  status: string;
+  priority: string;
+  progress?: number;
+  budget?: number;
+  spent?: number;
+  teamSize?: number;
+  alerts?: number;
+  startDate?: string;
+  deadline?: string;
+  phases: Phase[];
+  tasks: Task[];
+  orders: Order[];
+  comments?: CommentItem[];
+}
+
 const ProjectDetail = () => {
   const { id } = useParams();
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [newComment, setNewComment] = useState("");
+
+  useEffect(() => {
+    const fetchProject = async () => {
+      try {
+        const { data } = await api.get<{ project: Project }>(`/contractor/projects/${id}`);
+        setProject(data.project);
+      } catch (err) {
+        setError("Impossible de récupérer le chantier");
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (id) fetchProject();
+  }, [id]);
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
+  if (error || !project) return <div className="min-h-screen flex items-center justify-center text-destructive">{error ?? 'Chantier introuvable'}</div>;
 
   return (
     <div className="min-h-screen bg-background">
@@ -169,9 +99,9 @@ const ProjectDetail = () => {
             {/* Project Info */}
             <div className="lg:col-span-2 space-y-4">
               <div className="flex items-center space-x-3">
-                <div className="text-4xl">{project.image}</div>
+                <div className="text-4xl">🏗️</div>
                 <div>
-                  <h1 className="text-3xl font-bold text-white">{project.name}</h1>
+                  <h1 className="text-3xl font-bold text-white">{project.title}</h1>
                   <div className="flex items-center text-white/80">
                     <MapPin className="h-4 w-4 mr-1" />
                     {project.location}
@@ -188,7 +118,7 @@ const ProjectDetail = () => {
                 <Badge className="bg-destructive text-destructive-foreground">
                   Priorité {project.priority}
                 </Badge>
-                {project.alerts > 0 && (
+                {(project.alerts ?? 0) > 0 && (
                   <Badge variant="destructive" className="animate-pulse">
                     {project.alerts} alertes
                   </Badge>
@@ -217,12 +147,12 @@ const ProjectDetail = () => {
                     </div>
                     <div>
                       <p className="text-white/70">Équipe</p>
-                      <p className="font-semibold">{project.team} personnes</p>
+                      <p className="font-semibold">{project.teamSize ?? 0} personnes</p>
                     </div>
                     <div>
                       <p className="text-white/70">Échéance</p>
                       <p className="font-semibold">
-                        {new Date(project.deadline).toLocaleDateString('fr-FR')}
+                        {project.deadline ? new Date(project.deadline).toLocaleDateString('fr-FR') : '—'}
                       </p>
                     </div>
                   </div>
@@ -246,18 +176,22 @@ const ProjectDetail = () => {
           {/* Timeline */}
           <TabsContent value="timeline" className="space-y-6">
             <div className="grid gap-4">
-              {timeline.map((phase, index) => (
+              {project.phases?.map((phase, index) => (
                 <Card key={index} className="overflow-hidden">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-3">
                         {getStatusIcon(phase.status)}
-                        <h3 className="text-lg font-semibold">{phase.phase}</h3>
-                        <Badge variant="outline">{phase.tasks} tâches</Badge>
+                        <h3 className="text-lg font-semibold">{phase.name}</h3>
+                        {phase.tasks !== undefined && (
+                          <Badge variant="outline">{phase.tasks} tâches</Badge>
+                        )}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {new Date(phase.startDate).toLocaleDateString('fr-FR')} - 
-                        {new Date(phase.endDate).toLocaleDateString('fr-FR')}
+                        {phase.startDate ? new Date(phase.startDate).toLocaleDateString('fr-FR') : '—'}
+                        {phase.endDate && (
+                          <> - {new Date(phase.endDate).toLocaleDateString('fr-FR')}</>
+                        )}
                       </div>
                     </div>
                     
@@ -292,7 +226,7 @@ const ProjectDetail = () => {
             </div>
             
             <div className="grid gap-4">
-              {orders.map((order) => (
+              {project.orders?.map((order) => (
                 <Card key={order.id}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -346,7 +280,7 @@ const ProjectDetail = () => {
             
             {/* Comments List */}
             <div className="space-y-4">
-              {comments.map((comment) => (
+              {project.comments?.map((comment) => (
                 <Card key={comment.id}>
                   <CardContent className="p-4">
                     <div className="flex space-x-3">
