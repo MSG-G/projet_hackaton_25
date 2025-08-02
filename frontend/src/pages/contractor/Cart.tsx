@@ -1,33 +1,28 @@
 import { useState } from 'react';
-import { Trash2, Plus, Minus, ShoppingBag, CreditCard, Truck } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, CreditCard, Truck, MapPin } from 'lucide-react';
+import DeliveryLocationPicker from '@/components/cart/DeliveryLocationPicker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
+import { useCart } from '@/context/CartContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import { mockCart } from '@/data/mockData';
+
 
 const Cart = () => {
   const navigate = useNavigate();
-  const [cartItems, setCartItems] = useState(mockCart);
+  const { items: cartItems, updateQuantity, removeItem, clear } = useCart();
+  const [deliveryLocation, setDeliveryLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-  const updateQuantity = (id: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
+  const handleQuantityChange = (id: string, newQty: number) => {
+    if (newQty <= 0) {
       removeItem(id);
-      return;
+    } else {
+      updateQuantity(id, newQty);
     }
-    setCartItems(prev => 
-      prev.map(item => 
-        item.id === id ? { ...item, quantity: newQuantity } : item
-      )
-    );
-  };
-
-  const removeItem = (id: string) => {
-    setCartItems(prev => prev.filter(item => item.id !== id));
   };
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -36,6 +31,10 @@ const Cart = () => {
   const total = subtotal + tax + shipping;
 
   const handleCheckout = () => {
+    if (!deliveryLocation) {
+      alert('Veuillez sélectionner un lieu de livraison sur la carte.');
+      return;
+    }
     // Simulation de commande
     console.log('Commande passée:', { items: cartItems, total });
     navigate('/delivery');
@@ -201,6 +200,24 @@ const Cart = () => {
                 </CardContent>
               </Card>
               
+              {/* Delivery Location Picker */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <MapPin className="h-5 w-5" />
+                    <span>Lieu de livraison</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <DeliveryLocationPicker onLocationSelect={setDeliveryLocation} />
+                  {deliveryLocation && (
+                    <p className="text-sm text-muted-foreground">
+                      Lat: {deliveryLocation.lat.toFixed(5)}, Lng: {deliveryLocation.lng.toFixed(5)}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Delivery Info */}
               <Card>
                 <CardHeader>
